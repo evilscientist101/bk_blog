@@ -168,10 +168,10 @@ def main():
             index=configs.index(default_min_config) if default_min_config in configs else 0,
             key="side_min_config",
         )
-        st.subheader("Profitability")
+        st.subheader("Profitability - Tier A")
         profit_year = st.radio("Year (profitability)", YEAR_OPTIONS, index=YEAR_OPTIONS.index(st.session_state.profit_year), key="side_profit_year", horizontal=True)
         profit_util_pct = st.slider("Utilization % (profitability)", 1, 30, int(st.session_state.profit_util_pct), 1, key="side_profit_util")
-        st.subheader("Break-even")
+        st.subheader("Break-even - Tier B")
         break_even_year = st.radio("Year (break-even)", YEAR_OPTIONS, index=YEAR_OPTIONS.index(st.session_state.break_even_year), key="side_break_year", horizontal=True)
         break_even_util_pct = st.slider("Utilization % (break-even)", 1, 30, int(st.session_state.break_even_util_pct), 1, key="side_break_util")
         # Persist for next run
