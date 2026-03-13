@@ -42,7 +42,7 @@ def init_session_state():
     if "profit_util_pct" not in st.session_state:
         st.session_state.profit_util_pct = 15.0
     if "break_even_year" not in st.session_state:
-        st.session_state.break_even_year = 2030
+        st.session_state.break_even_year = 2027
     if "break_even_util_pct" not in st.session_state:
         st.session_state.break_even_util_pct = 10.0
 
