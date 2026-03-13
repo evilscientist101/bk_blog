@@ -146,14 +146,14 @@ def main():
             util_b = st.slider("Utilization %", 1, 30, int(st.session_state.break_even_util_pct), 1, key="slider_break_util")
             col1, col2, _ = st.columns([1, 1, 4])
             with col1:
-                if st.button("Back"):
-                    st.session_state.wizard_step = 0
-                    st.rerun()
-            with col2:
                 if st.button("Next"):
                     st.session_state.break_even_year = year_b
                     st.session_state.break_even_util_pct = float(util_b)
                     st.session_state.wizard_step = 2
+                    st.rerun()
+            with col2:
+                if st.button("Back"):
+                    st.session_state.wizard_step = 0
                     st.rerun()
         return
 
