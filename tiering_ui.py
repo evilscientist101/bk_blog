@@ -225,7 +225,7 @@ def main():
         base1 = alt.Chart(summary).mark_bar(color=NORTHERN_LIGHTS).encode(
             y=alt.Y("tier", sort=["Tier A", "Tier B", "Tier C"], title=None),
             x=alt.X("count", title="Number of locations"),
-        ).properties(height=chart_height, background=CARBON)
+        )
         labels1 = alt.Chart(summary).mark_text(
             color=OFF_WHITE,
             align="left",
@@ -235,7 +235,7 @@ def main():
             x="count",
             text="count",
         )
-        ch1 = (base1 + labels1).configure_axis(
+        ch1 = alt.layer(base1, labels1).properties(height=chart_height, background=CARBON).configure_axis(
             labelColor=OFF_WHITE,
             titleColor=OFF_WHITE,
         ).configure_view(
@@ -250,7 +250,7 @@ def main():
             base2 = alt.Chart(total_kwh_df).mark_bar(color=ARCTIC_COLD).encode(
                 y=alt.Y("tier", sort=["Tier A", "Tier B", "Tier C"], title=None),
                 x=alt.X("total_kwh", title="Total kWh/day"),
-            ).properties(height=chart_height, background=CARBON)
+            )
             labels2 = alt.Chart(total_kwh_df).mark_text(
                 color=OFF_WHITE,
                 align="left",
@@ -260,7 +260,7 @@ def main():
                 x="total_kwh",
                 text="total_kwh",
             )
-            ch2 = (base2 + labels2).configure_axis(
+            ch2 = alt.layer(base2, labels2).properties(height=chart_height, background=CARBON).configure_axis(
                 labelColor=OFF_WHITE,
                 titleColor=OFF_WHITE,
             ).configure_view(
@@ -281,7 +281,7 @@ def main():
             base3 = alt.Chart(avg_util_df).mark_bar(color=NORTHERN_LIGHTS).encode(
                 y=alt.Y("tier", sort=["Tier A", "Tier B", "Tier C"], title=None),
                 x=alt.X("avg_util_pct", title="Average utilization (%)"),
-            ).properties(height=chart_height, background=CARBON)
+            )
             labels3 = alt.Chart(avg_util_df).mark_text(
                 color=OFF_WHITE,
                 align="left",
@@ -291,7 +291,7 @@ def main():
                 x="avg_util_pct",
                 text=alt.Text("avg_util_pct:Q", format=".1f"),
             )
-            ch3 = (base3 + labels3).configure_axis(
+            ch3 = alt.layer(base3, labels3).properties(height=chart_height, background=CARBON).configure_axis(
                 labelColor=OFF_WHITE,
                 titleColor=OFF_WHITE,
             ).configure_view(
@@ -308,7 +308,7 @@ def main():
             base4 = alt.Chart(avg_kwh_df).mark_bar(color=ARCTIC_COLD).encode(
                 y=alt.Y("tier", sort=["Tier A", "Tier B", "Tier C"], title=None),
                 x=alt.X("avg_kwh", title="Average kWh/day"),
-            ).properties(height=chart_height, background=CARBON)
+            )
             labels4 = alt.Chart(avg_kwh_df).mark_text(
                 color=OFF_WHITE,
                 align="left",
@@ -318,7 +318,7 @@ def main():
                 x="avg_kwh",
                 text=alt.Text("avg_kwh:Q", format=".0f"),
             )
-            ch4 = (base4 + labels4).configure_axis(
+            ch4 = alt.layer(base4, labels4).properties(height=chart_height, background=CARBON).configure_axis(
                 labelColor=OFF_WHITE,
                 titleColor=OFF_WHITE,
             ).configure_view(
