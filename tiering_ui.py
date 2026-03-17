@@ -7,6 +7,14 @@ Wizard: (1) Profitability, (2) Break-even (year as buttons, utilization as slide
 Results: all assumptions in sidebar; tier distribution, count by config,
 total/avg kWh per tier, avg utilization per tier.
 """
+BK blog analysis – Tiering UI (setup wizard)
+
+Run with: streamlit run tiering_ui.py
+
+Wizard: (1) Profitability, (2) Break-even (year as buttons, utilization as slider).
+Results: all assumptions in sidebar; tier distribution, count by config,
+total/avg kWh per tier, avg utilization per tier.
+"""
 import os
 import pandas as pd
 import streamlit as st
@@ -27,6 +35,12 @@ YEAR_COLS = {
 }
 YEAR_OPTIONS = [2026, 2027, 2030, 2035]
 CONFIG_ORDER = ["2x50", "2x150", "2x300", "4x300", "6x300"]
+
+# Zoniq brand colors for charts
+NORTHERN_LIGHTS = "#00EA88"  # primary data
+ARCTIC_COLD = "#49FFF4"  # secondary data
+CARBON = "#2D3330"  # backgrounds
+OFF_WHITE = "#F8F8F8"  # text, borders
 
 
 @st.cache_data
@@ -134,20 +148,17 @@ def main():
                 st.rerun()
         return
 
-    # ----- Step 1: Break-even (narrow centered layout) -----
+    # ----- Step 1: Break-even (narrow centered layout, utilization only) -----
     if st.session_state.wizard_step == 1:
         _left, center, _right = st.columns([1, 2, 1])
         with center:
             st.title("Setup – New opportunities")
             st.subheader("Step 2 of 2: Break-even")
-            st.markdown("**When do you expect to be break-even for your new opportunities?**")
-            year_b = st.radio("Year", YEAR_OPTIONS, index=YEAR_OPTIONS.index(st.session_state.break_even_year), key="radio_break_year", horizontal=True)
             st.markdown("**What utilization rate do you need to achieve to be break-even?**")
             util_b = st.slider("Utilization %", 1, 30, int(st.session_state.break_even_util_pct), 1, key="slider_break_util")
             col1, col2, _ = st.columns([1, 1, 4])
             with col1:
                 if st.button("Next"):
-                    st.session_state.break_even_year = year_b
                     st.session_state.break_even_util_pct = float(util_b)
                     st.session_state.wizard_step = 2
                     st.rerun()
@@ -172,13 +183,14 @@ def main():
         profit_year = st.radio("Year (profitability)", YEAR_OPTIONS, index=YEAR_OPTIONS.index(st.session_state.profit_year), key="side_profit_year", horizontal=True)
         profit_util_pct = st.slider("Utilization % (profitability)", 1, 30, int(st.session_state.profit_util_pct), 1, key="side_profit_util")
         st.subheader("Break-even - Tier B")
-        break_even_year = st.radio("Year (break-even)", YEAR_OPTIONS, index=YEAR_OPTIONS.index(st.session_state.break_even_year), key="side_break_year", horizontal=True)
         break_even_util_pct = st.slider("Utilization % (break-even)", 1, 30, int(st.session_state.break_even_util_pct), 1, key="side_break_util")
         # Persist for next run
         st.session_state.profit_year = profit_year
         st.session_state.profit_util_pct = float(profit_util_pct)
-        st.session_state.break_even_year = break_even_year
         st.session_state.break_even_util_pct = float(break_even_util_pct)
+
+    # Break-even year is aligned to profitability year (no separate control)
+    break_even_year = profit_year
 
     tier_df = assign_tiers_and_recommended_config(
         df, min_config, profit_year, profit_util_pct, break_even_year, break_even_util_pct
@@ -208,7 +220,7 @@ def main():
 """
     )
 
-    chart_height = 220
+    chart_height = 170
 
     # Row 1: Profitability tiers | Opportunity size
     c1, c2 = st.columns(2)
@@ -218,36 +230,81 @@ def main():
             "tier": ["Tier A", "Tier B", "Tier C"],
             "count": [int(tier_counts_series["Tier A"]), int(tier_counts_series["Tier B"]), int(tier_counts_series["Tier C"])],
         })
-        ch1 = alt.Chart(summary).mark_bar(color="#2ecc71").encode(
+        base1 = alt.Chart(summary).mark_bar(color=NORTHERN_LIGHTS).encode(
             y=alt.Y("tier", sort=["Tier A", "Tier B", "Tier C"], title=None),
             x=alt.X("count", title="Number of locations"),
-        ).properties(height=chart_height)
+        ).properties(height=chart_height, background=CARBON)
+        labels1 = alt.Chart(summary).mark_text(
+            color=OFF_WHITE,
+            align="left",
+            dx=4,
+        ).encode(
+            y=alt.Y("tier", sort=["Tier A", "Tier B", "Tier C"]),
+            x="count",
+            text="count",
+        )
+        ch1 = (base1 + labels1).configure_axis(
+            labelColor=OFF_WHITE,
+            titleColor=OFF_WHITE,
+        ).configure_view(
+            stroke=OFF_WHITE,
+        )
         st.altair_chart(ch1, use_container_width=True)
     with c2:
         st.subheader("Opportunity size")
         if has_est_potential and EST_POTENTIAL_COL in tier_df.columns:
             total_kwh_df = tier_df.groupby("tier")[EST_POTENTIAL_COL].sum().reindex(["Tier A", "Tier B", "Tier C"], fill_value=0).reset_index()
             total_kwh_df.columns = ["tier", "total_kwh"]
-            ch2 = alt.Chart(total_kwh_df).mark_bar(color="#3498db").encode(
+            base2 = alt.Chart(total_kwh_df).mark_bar(color=ARCTIC_COLD).encode(
                 y=alt.Y("tier", sort=["Tier A", "Tier B", "Tier C"], title=None),
                 x=alt.X("total_kwh", title="Total kWh/day"),
-            ).properties(height=chart_height)
+            ).properties(height=chart_height, background=CARBON)
+            labels2 = alt.Chart(total_kwh_df).mark_text(
+                color=OFF_WHITE,
+                align="left",
+                dx=4,
+            ).encode(
+                y=alt.Y("tier", sort=["Tier A", "Tier B", "Tier C"]),
+                x="total_kwh",
+                text="total_kwh",
+            )
+            ch2 = (base2 + labels2).configure_axis(
+                labelColor=OFF_WHITE,
+                titleColor=OFF_WHITE,
+            ).configure_view(
+                stroke=OFF_WHITE,
+            )
             st.altair_chart(ch2, use_container_width=True)
         else:
             st.caption("No Estimated Potential column in data.")
 
     # Row 2: Performance averages
-    st.subheader("Performance averages")
+    st.markdown("**Performance averages**")
     c3, c4 = st.columns(2)
     with c3:
         st.caption("Average utilization rate by tier")
         if util_col_agg in tier_df.columns and tier_df[util_col_agg].notna().any():
             avg_util_df = (tier_df.groupby("tier")[util_col_agg].mean().reindex(["Tier A", "Tier B", "Tier C"], fill_value=0) * 100).reset_index()
             avg_util_df.columns = ["tier", "avg_util_pct"]
-            ch3 = alt.Chart(avg_util_df).mark_bar(color="#9b59b6").encode(
+            base3 = alt.Chart(avg_util_df).mark_bar(color=NORTHERN_LIGHTS).encode(
                 y=alt.Y("tier", sort=["Tier A", "Tier B", "Tier C"], title=None),
                 x=alt.X("avg_util_pct", title="Average utilization (%)"),
-            ).properties(height=chart_height)
+            ).properties(height=chart_height, background=CARBON)
+            labels3 = alt.Chart(avg_util_df).mark_text(
+                color=OFF_WHITE,
+                align="left",
+                dx=4,
+            ).encode(
+                y=alt.Y("tier", sort=["Tier A", "Tier B", "Tier C"]),
+                x="avg_util_pct",
+                text=alt.Text("avg_util_pct:Q", format=".1f"),
+            )
+            ch3 = (base3 + labels3).configure_axis(
+                labelColor=OFF_WHITE,
+                titleColor=OFF_WHITE,
+            ).configure_view(
+                stroke=OFF_WHITE,
+            )
             st.altair_chart(ch3, use_container_width=True)
         else:
             st.caption("No utilization data.")
@@ -256,28 +313,34 @@ def main():
         if has_est_potential and EST_POTENTIAL_COL in tier_df.columns:
             avg_kwh_df = tier_df.groupby("tier")[EST_POTENTIAL_COL].mean().reindex(["Tier A", "Tier B", "Tier C"], fill_value=0).reset_index()
             avg_kwh_df.columns = ["tier", "avg_kwh"]
-            ch4 = alt.Chart(avg_kwh_df).mark_bar(color="#e67e22").encode(
+            base4 = alt.Chart(avg_kwh_df).mark_bar(color=ARCTIC_COLD).encode(
                 y=alt.Y("tier", sort=["Tier A", "Tier B", "Tier C"], title=None),
                 x=alt.X("avg_kwh", title="Average kWh/day"),
-            ).properties(height=chart_height)
+            ).properties(height=chart_height, background=CARBON)
+            labels4 = alt.Chart(avg_kwh_df).mark_text(
+                color=OFF_WHITE,
+                align="left",
+                dx=4,
+            ).encode(
+                y=alt.Y("tier", sort=["Tier A", "Tier B", "Tier C"]),
+                x="avg_kwh",
+                text=alt.Text("avg_kwh:Q", format=".0f"),
+            )
+            ch4 = (base4 + labels4).configure_axis(
+                labelColor=OFF_WHITE,
+                titleColor=OFF_WHITE,
+            ).configure_view(
+                stroke=OFF_WHITE,
+            )
             st.altair_chart(ch4, use_container_width=True)
         else:
             st.caption("No Estimated Potential column in data.")
 
-    # Tables below charts
+    # Table alongside charts (kept close for a tighter layout)
     st.subheader("Configurations rightsizing")
     by_tier_config = tier_df.groupby(["tier", "recommended_config"]).size().unstack(fill_value=0)
     by_tier_config = by_tier_config.reindex(["Tier A", "Tier B", "Tier C"], fill_value=0).reset_index()
     st.dataframe(by_tier_config, width="stretch", hide_index=True)
-
-    st.subheader("Locations by tier (with recommended configuration)")
-    out = tier_df[[ID_COL, "tier", "recommended_config"]].copy()
-    if NAME_COL in df.columns:
-        names = df[[ID_COL, NAME_COL]].drop_duplicates(ID_COL).set_index(ID_COL)[NAME_COL]
-        out = out.join(names, on=ID_COL, how="left")
-        out = out[[ID_COL, NAME_COL, "tier", "recommended_config"]]
-    st.dataframe(out.sort_values(["tier", ID_COL]), width="stretch", hide_index=True)
-    st.caption("Recommended configuration = highest configuration that still leaves the location in that tier.")
 
 
 if __name__ == "__main__":
