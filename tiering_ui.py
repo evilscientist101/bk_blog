@@ -214,125 +214,139 @@ def main():
 
     chart_height = 170
 
-    # Row 1: Profitability tiers | Opportunity size
-    c1, c2 = st.columns(2)
-    with c1:
-        st.subheader("Profitability tiers")
-        summary = pd.DataFrame({
-            "tier": ["Tier A", "Tier B", "Tier C"],
-            "count": [int(tier_counts_series["Tier A"]), int(tier_counts_series["Tier B"]), int(tier_counts_series["Tier C"])],
-        })
-        base1 = alt.Chart(summary).mark_bar(color=NORTHERN_LIGHTS).encode(
-            y=alt.Y("tier", sort=["Tier A", "Tier B", "Tier C"], title=None),
-            x=alt.X("count", title="Number of locations"),
-        )
-        labels1 = alt.Chart(summary).mark_text(
-            color=OFF_WHITE,
-            align="left",
-            dx=4,
-        ).encode(
-            y=alt.Y("tier", sort=["Tier A", "Tier B", "Tier C"]),
-            x="count",
-            text="count",
-        )
-        ch1 = alt.layer(base1, labels1).properties(height=chart_height, background=CARBON).configure_axis(
-            labelColor=OFF_WHITE,
-            titleColor=OFF_WHITE,
-        ).configure_view(
-            stroke=OFF_WHITE,
-        )
-        st.altair_chart(ch1, use_container_width=True)
-    with c2:
-        st.subheader("Opportunity size")
-        if has_est_potential and EST_POTENTIAL_COL in tier_df.columns:
-            total_kwh_df = tier_df.groupby("tier")[EST_POTENTIAL_COL].sum().reindex(["Tier A", "Tier B", "Tier C"], fill_value=0).reset_index()
-            total_kwh_df.columns = ["tier", "total_kwh"]
-            base2 = alt.Chart(total_kwh_df).mark_bar(color=ARCTIC_COLD).encode(
-                y=alt.Y("tier", sort=["Tier A", "Tier B", "Tier C"], title=None),
-                x=alt.X("total_kwh", title="Total kWh/day"),
-            )
-            labels2 = alt.Chart(total_kwh_df).mark_text(
-                color=OFF_WHITE,
-                align="left",
-                dx=4,
-            ).encode(
-                y=alt.Y("tier", sort=["Tier A", "Tier B", "Tier C"]),
-                x="total_kwh",
-                text="total_kwh",
-            )
-            ch2 = alt.layer(base2, labels2).properties(height=chart_height, background=CARBON).configure_axis(
-                labelColor=OFF_WHITE,
-                titleColor=OFF_WHITE,
-            ).configure_view(
-                stroke=OFF_WHITE,
-            )
-            st.altair_chart(ch2, use_container_width=True)
-        else:
-            st.caption("No Estimated Potential column in data.")
+    # Two-panel layout: left (description + table), right (charts)
+    left, right = st.columns([1, 2], vertical_alignment="top")
 
-    # Row 2: Performance averages
-    st.markdown("**Performance averages**")
-    c3, c4 = st.columns(2)
-    with c3:
-        st.caption("Average utilization rate by tier")
-        if util_col_agg in tier_df.columns and tier_df[util_col_agg].notna().any():
-            avg_util_df = (tier_df.groupby("tier")[util_col_agg].mean().reindex(["Tier A", "Tier B", "Tier C"], fill_value=0) * 100).reset_index()
-            avg_util_df.columns = ["tier", "avg_util_pct"]
-            base3 = alt.Chart(avg_util_df).mark_bar(color=NORTHERN_LIGHTS).encode(
-                y=alt.Y("tier", sort=["Tier A", "Tier B", "Tier C"], title=None),
-                x=alt.X("avg_util_pct", title="Average utilization (%)"),
-            )
-            labels3 = alt.Chart(avg_util_df).mark_text(
-                color=OFF_WHITE,
-                align="left",
-                dx=4,
-            ).encode(
-                y=alt.Y("tier", sort=["Tier A", "Tier B", "Tier C"]),
-                x="avg_util_pct",
-                text=alt.Text("avg_util_pct:Q", format=".1f"),
-            )
-            ch3 = alt.layer(base3, labels3).properties(height=chart_height, background=CARBON).configure_axis(
-                labelColor=OFF_WHITE,
-                titleColor=OFF_WHITE,
-            ).configure_view(
-                stroke=OFF_WHITE,
-            )
-            st.altair_chart(ch3, use_container_width=True)
-        else:
-            st.caption("No utilization data.")
-    with c4:
-        st.caption("Average estimated kWh/day by tier")
-        if has_est_potential and EST_POTENTIAL_COL in tier_df.columns:
-            avg_kwh_df = tier_df.groupby("tier")[EST_POTENTIAL_COL].mean().reindex(["Tier A", "Tier B", "Tier C"], fill_value=0).reset_index()
-            avg_kwh_df.columns = ["tier", "avg_kwh"]
-            base4 = alt.Chart(avg_kwh_df).mark_bar(color=ARCTIC_COLD).encode(
-                y=alt.Y("tier", sort=["Tier A", "Tier B", "Tier C"], title=None),
-                x=alt.X("avg_kwh", title="Average kWh/day"),
-            )
-            labels4 = alt.Chart(avg_kwh_df).mark_text(
-                color=OFF_WHITE,
-                align="left",
-                dx=4,
-            ).encode(
-                y=alt.Y("tier", sort=["Tier A", "Tier B", "Tier C"]),
-                x="avg_kwh",
-                text=alt.Text("avg_kwh:Q", format=".0f"),
-            )
-            ch4 = alt.layer(base4, labels4).properties(height=chart_height, background=CARBON).configure_axis(
-                labelColor=OFF_WHITE,
-                titleColor=OFF_WHITE,
-            ).configure_view(
-                stroke=OFF_WHITE,
-            )
-            st.altair_chart(ch4, use_container_width=True)
-        else:
-            st.caption("No Estimated Potential column in data.")
+    with left:
+        st.markdown(
+            f"""
+**Tier definitions**
 
-    # Table alongside charts (kept close for a tighter layout)
-    st.subheader("Configurations rightsizing")
-    by_tier_config = tier_df.groupby(["tier", "recommended_config"]).size().unstack(fill_value=0)
-    by_tier_config = by_tier_config.reindex(["Tier A", "Tier B", "Tier C"], fill_value=0).reset_index()
-    st.dataframe(by_tier_config, width="stretch", hide_index=True)
+- **Tier A (profitability):** Reaches **{profit_util_pct}%** utilization by **{profit_year}** on **{min_config}**.
+- **Tier B (break-even):** At least **{break_even_util_pct}%** utilization by **{break_even_year}** on **{min_config}**.
+- **Tier C:** All other locations.
+"""
+        )
+
+        st.subheader("Configurations rightsizing")
+        by_tier_config = tier_df.groupby(["tier", "recommended_config"]).size().unstack(fill_value=0)
+        by_tier_config = by_tier_config.reindex(["Tier A", "Tier B", "Tier C"], fill_value=0).reset_index()
+        st.dataframe(by_tier_config, width="stretch", hide_index=True)
+
+    with right:
+        # Row 1: Profitability tiers | Opportunity size
+        c1, c2 = st.columns(2)
+        with c1:
+            st.subheader("Profitability tiers")
+            summary = pd.DataFrame({
+                "tier": ["Tier A", "Tier B", "Tier C"],
+                "count": [int(tier_counts_series["Tier A"]), int(tier_counts_series["Tier B"]), int(tier_counts_series["Tier C"])],
+            })
+            base1 = alt.Chart(summary).mark_bar(color=NORTHERN_LIGHTS).encode(
+                y=alt.Y("tier", sort=["Tier A", "Tier B", "Tier C"], title=None),
+                x=alt.X("count", title="Number of locations"),
+            )
+            labels1 = alt.Chart(summary).mark_text(
+                color=OFF_WHITE,
+                align="left",
+                dx=4,
+            ).encode(
+                y=alt.Y("tier", sort=["Tier A", "Tier B", "Tier C"]),
+                x="count",
+                text="count",
+            )
+            ch1 = alt.layer(base1, labels1).properties(height=chart_height, background=CARBON).configure_axis(
+                labelColor=OFF_WHITE,
+                titleColor=OFF_WHITE,
+            ).configure_view(
+                stroke=OFF_WHITE,
+            )
+            st.altair_chart(ch1, use_container_width=True)
+        with c2:
+            st.subheader("Opportunity size")
+            if has_est_potential and EST_POTENTIAL_COL in tier_df.columns:
+                total_kwh_df = tier_df.groupby("tier")[EST_POTENTIAL_COL].sum().reindex(["Tier A", "Tier B", "Tier C"], fill_value=0).reset_index()
+                total_kwh_df.columns = ["tier", "total_kwh"]
+                base2 = alt.Chart(total_kwh_df).mark_bar(color=ARCTIC_COLD).encode(
+                    y=alt.Y("tier", sort=["Tier A", "Tier B", "Tier C"], title=None),
+                    x=alt.X("total_kwh", title="Total kWh/day"),
+                )
+                labels2 = alt.Chart(total_kwh_df).mark_text(
+                    color=OFF_WHITE,
+                    align="left",
+                    dx=4,
+                ).encode(
+                    y=alt.Y("tier", sort=["Tier A", "Tier B", "Tier C"]),
+                    x="total_kwh",
+                    text="total_kwh",
+                )
+                ch2 = alt.layer(base2, labels2).properties(height=chart_height, background=CARBON).configure_axis(
+                    labelColor=OFF_WHITE,
+                    titleColor=OFF_WHITE,
+                ).configure_view(
+                    stroke=OFF_WHITE,
+                )
+                st.altair_chart(ch2, use_container_width=True)
+            else:
+                st.caption("No Estimated Potential column in data.")
+
+        # Row 2: Performance averages
+        st.markdown("**Performance averages**")
+        c3, c4 = st.columns(2)
+        with c3:
+            st.caption("Average utilization rate by tier")
+            if util_col_agg in tier_df.columns and tier_df[util_col_agg].notna().any():
+                avg_util_df = (tier_df.groupby("tier")[util_col_agg].mean().reindex(["Tier A", "Tier B", "Tier C"], fill_value=0) * 100).reset_index()
+                avg_util_df.columns = ["tier", "avg_util_pct"]
+                base3 = alt.Chart(avg_util_df).mark_bar(color=NORTHERN_LIGHTS).encode(
+                    y=alt.Y("tier", sort=["Tier A", "Tier B", "Tier C"], title=None),
+                    x=alt.X("avg_util_pct", title="Average utilization (%)"),
+                )
+                labels3 = alt.Chart(avg_util_df).mark_text(
+                    color=OFF_WHITE,
+                    align="left",
+                    dx=4,
+                ).encode(
+                    y=alt.Y("tier", sort=["Tier A", "Tier B", "Tier C"]),
+                    x="avg_util_pct",
+                    text=alt.Text("avg_util_pct:Q", format=".1f"),
+                )
+                ch3 = alt.layer(base3, labels3).properties(height=chart_height, background=CARBON).configure_axis(
+                    labelColor=OFF_WHITE,
+                    titleColor=OFF_WHITE,
+                ).configure_view(
+                    stroke=OFF_WHITE,
+                )
+                st.altair_chart(ch3, use_container_width=True)
+            else:
+                st.caption("No utilization data.")
+        with c4:
+            st.caption("Average estimated kWh/day by tier")
+            if has_est_potential and EST_POTENTIAL_COL in tier_df.columns:
+                avg_kwh_df = tier_df.groupby("tier")[EST_POTENTIAL_COL].mean().reindex(["Tier A", "Tier B", "Tier C"], fill_value=0).reset_index()
+                avg_kwh_df.columns = ["tier", "avg_kwh"]
+                base4 = alt.Chart(avg_kwh_df).mark_bar(color=ARCTIC_COLD).encode(
+                    y=alt.Y("tier", sort=["Tier A", "Tier B", "Tier C"], title=None),
+                    x=alt.X("avg_kwh", title="Average kWh/day"),
+                )
+                labels4 = alt.Chart(avg_kwh_df).mark_text(
+                    color=OFF_WHITE,
+                    align="left",
+                    dx=4,
+                ).encode(
+                    y=alt.Y("tier", sort=["Tier A", "Tier B", "Tier C"]),
+                    x="avg_kwh",
+                    text=alt.Text("avg_kwh:Q", format=".0f"),
+                )
+                ch4 = alt.layer(base4, labels4).properties(height=chart_height, background=CARBON).configure_axis(
+                    labelColor=OFF_WHITE,
+                    titleColor=OFF_WHITE,
+                ).configure_view(
+                    stroke=OFF_WHITE,
+                )
+                st.altair_chart(ch4, use_container_width=True)
+            else:
+                st.caption("No Estimated Potential column in data.")
 
 
 if __name__ == "__main__":
