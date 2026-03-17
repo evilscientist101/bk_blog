@@ -1,13 +1,5 @@
 """
-BK blog analysis – Tiering UI (setup wizard)
-
-Run with: streamlit run tiering_ui.py
-
-Wizard: (1) Profitability, (2) Break-even (year as buttons, utilization as slider).
-Results: all assumptions in sidebar; tier distribution, count by config,
-total/avg kWh per tier, avg utilization per tier.
-"""
-BK blog analysis – Tiering UI (setup wizard)
+BK blog analysis - Tiering UI (setup wizard)
 
 Run with: streamlit run tiering_ui.py
 
