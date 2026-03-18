@@ -69,8 +69,15 @@ def assign_tiers_and_recommended_config(
     df_min = df[df[CONFIG_COL] == min_config].drop_duplicates(subset=[ID_COL], keep="first")
     all_ids = set(df[ID_COL].unique())
 
-    # Build a metrics frame for tiering based on utilization at min_config
-    util_df = df_min[[ID_COL, col_p, col_b]].rename(columns={col_p: "u_p", col_b: "u_b"}).copy()
+    # Build a metrics frame for tiering based on utilization at min_config.
+    # Note: col_p and col_b can be the same column (e.g. both map to "Util 2027").
+    if col_p == col_b:
+        util_df = df_min[[ID_COL, col_p]].copy()
+        util_df["u_p"] = util_df[col_p]
+        util_df["u_b"] = util_df[col_p]
+        util_df = util_df[[ID_COL, "u_p", "u_b"]]
+    else:
+        util_df = df_min[[ID_COL, col_p, col_b]].rename(columns={col_p: "u_p", col_b: "u_b"}).copy()
 
     # Tier A: highest-profitability locations such that the average utilization of Tier A
     # at profit_year on min_config is at or above the specified threshold.
