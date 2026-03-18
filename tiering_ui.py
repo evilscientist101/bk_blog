@@ -65,22 +65,52 @@ def assign_tiers_and_recommended_config(
     if not configs_in_data:
         configs_in_data = sorted(df[CONFIG_COL].dropna().unique().tolist())
 
+    # Use only rows at the minimum configuration to determine tiers
     df_min = df[df[CONFIG_COL] == min_config].drop_duplicates(subset=[ID_COL], keep="first")
     all_ids = set(df[ID_COL].unique())
+
+    # Build a metrics frame for tiering based on utilization at min_config
+    util_df = df_min[[ID_COL, col_p, col_b]].rename(columns={col_p: "u_p", col_b: "u_b"}).copy()
+
+    # Tier A: highest-profitability locations such that the average utilization of Tier A
+    # at profit_year on min_config is at or above the specified threshold.
+    tier_a_ids = set()
+    util_df_p = util_df[util_df["u_p"].notna()].sort_values("u_p", ascending=False).reset_index(drop=True)
+    if not util_df_p.empty:
+        util_df_p["cum_sum_p"] = util_df_p["u_p"].cumsum()
+        util_df_p["rank"] = range(1, len(util_df_p) + 1)
+        util_df_p["cum_avg_p"] = util_df_p["cum_sum_p"] / util_df_p["rank"]
+        eligible = util_df_p[util_df_p["cum_avg_p"] >= util_p]
+        if not eligible.empty:
+            k = int(eligible["rank"].max())
+            tier_a_ids = set(util_df_p.loc[util_df_p["rank"] <= k, ID_COL])
+
+    # Tier B: among remaining locations, choose highest break-even utilization such that
+    # their average utilization at break_even_year on min_config is at or above threshold.
+    remaining_for_b = util_df[~util_df[ID_COL].isin(tier_a_ids)]
+    tier_b_ids = set()
+    util_df_b = remaining_for_b[remaining_for_b["u_b"].notna()].sort_values("u_b", ascending=False).reset_index(drop=True)
+    if not util_df_b.empty:
+        util_df_b["cum_sum_b"] = util_df_b["u_b"].cumsum()
+        util_df_b["rank"] = range(1, len(util_df_b) + 1)
+        util_df_b["cum_avg_b"] = util_df_b["cum_sum_b"] / util_df_b["rank"]
+        eligible_b = util_df_b[util_df_b["cum_avg_b"] >= util_b]
+        if not eligible_b.empty:
+            k_b = int(eligible_b["rank"].max())
+            tier_b_ids = set(util_df_b.loc[util_df_b["rank"] <= k_b, ID_COL])
+
+    # Assign tiers: Tier A > Tier B > Tier C
     loc_to_tier = {}
-    for _, row in df_min.iterrows():
-        loc_id = row[ID_COL]
-        u_p = row.get(col_p)
-        u_b = row.get(col_b)
-        if pd.notna(u_p) and u_p >= util_p:
+    for loc_id in all_ids:
+        if loc_id in tier_a_ids:
             loc_to_tier[loc_id] = "Tier A"
-        elif pd.notna(u_b) and u_b >= util_b:
+        elif loc_id in tier_b_ids:
             loc_to_tier[loc_id] = "Tier B"
         else:
             loc_to_tier[loc_id] = "Tier C"
-    for loc_id in all_ids - set(df_min[ID_COL]):
-        loc_to_tier[loc_id] = "Tier C"
 
+    # Recommended configuration logic remains per-location: highest config that
+    # individually meets the relevant utilization threshold for that tier.
     loc_to_rec_config = {}
     for loc_id in all_ids:
         tier = loc_to_tier[loc_id]
@@ -92,6 +122,7 @@ def assign_tiers_and_recommended_config(
         else:
             loc_to_rec_config[loc_id] = min_config if min_config in rows_loc[CONFIG_COL].values else "—"
             continue
+
         rows_ok = rows_loc[meets]
         if rows_ok.empty:
             loc_to_rec_config[loc_id] = min_config
@@ -105,11 +136,13 @@ def assign_tiers_and_recommended_config(
 
     result = []
     for loc_id in sorted(all_ids):
-        result.append({
-            ID_COL: loc_id,
-            "tier": loc_to_tier[loc_id],
-            "recommended_config": loc_to_rec_config.get(loc_id, min_config),
-        })
+        result.append(
+            {
+                ID_COL: loc_id,
+                "tier": loc_to_tier[loc_id],
+                "recommended_config": loc_to_rec_config.get(loc_id, min_config),
+            }
+        )
     return pd.DataFrame(result)
 
 
@@ -203,14 +236,6 @@ def main():
     else:
         tier_df[EST_POTENTIAL_COL] = None
         tier_df[util_col_agg] = None
-
-    st.markdown(
-        f"""
-- **Tier A (profitability):** Reaches **{profit_util_pct}%** utilization by **{profit_year}** on **{min_config}**.
-- **Tier B (break-even):** At least **{break_even_util_pct}%** utilization by **{break_even_year}** on **{min_config}**.
-- **Tier C:** All other locations.
-"""
-    )
 
     chart_height = 170
 
